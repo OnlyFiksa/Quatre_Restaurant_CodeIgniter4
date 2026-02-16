@@ -1,0 +1,35 @@
+/* Hilangkan Scrollbar tapi tetap bisa scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Custom Animation untuk Gambar Banner */
+@keyframes scaleSlow {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
+}
+.animate-scale-slow {
+    animation: scaleSlow 20s linear infinite alternate;
+}
+
+/* Tombol Kategori Pill Shape */
+.cat-btn {
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    background-color: transparent;
+    color: #558b6e;
+    border: 1px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.cat-btn:hover {
+    background-color: #f4f7f5;
+}
+
+.cat-btn.active {
+    background-color: #558b6e;
+    color: white;
+    box-shadow: 0 4px 15px rgba(85, 139, 110, 0.4);
+}

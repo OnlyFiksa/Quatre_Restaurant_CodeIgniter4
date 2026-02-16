@@ -13,7 +13,7 @@ class LoginController extends BaseController
         if (session()->get('isLoggedIn')) {
             return redirect()->to('/admin/dashboard');
         }
-        return view('auth/login');
+        return view('Auth/login');
     }
 
     public function auth()
