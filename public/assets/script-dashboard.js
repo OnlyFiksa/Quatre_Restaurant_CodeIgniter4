@@ -1,19 +1,20 @@
+/**
+ * FINAL CODE - script-dashboard.js
+ * Lokasi: public/assets/js/script-dashboard.js
+ */
+
 document.addEventListener('DOMContentLoaded', function() {
 
     // ==========================================================
-    // 1. HELPER: FUNGSI ANIMASI MODAL (TAILWIND)
+    // 1. HELPER: FUNGSI ANIMASI MODAL
     // ==========================================================
-    // Fungsi ini menangani efek Fade In/Out agar halus
     function toggleModal(modal, show) {
         if (!modal) return;
-        const container = modal.querySelector('div'); // Kotak putih di dalam overlay
+        const container = modal.querySelector('div'); 
 
         if (show) {
-            // Tampilkan Overlay
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-            
-            // Animasi Masuk (Tunggu 10ms agar class 'flex' ter-render dulu)
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
                 if(container) {
@@ -22,14 +23,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }, 10);
         } else {
-            // Animasi Keluar
             modal.classList.add('opacity-0');
             if(container) {
                 container.classList.remove('scale-100');
                 container.classList.add('scale-95');
             }
-
-            // Sembunyikan elemen setelah durasi animasi selesai (300ms)
             setTimeout(() => {
                 modal.classList.remove('flex');
                 modal.classList.add('hidden');
@@ -47,13 +45,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (logoutBtn && logoutPopup) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            toggleModal(logoutPopup, true); // Buka
+            toggleModal(logoutPopup, true);
         });
     }
 
     if (cancelLogout && logoutPopup) {
         cancelLogout.addEventListener('click', () => {
-            toggleModal(logoutPopup, false); // Tutup
+            toggleModal(logoutPopup, false);
         });
     }
 
@@ -68,36 +66,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const orderIdInput = document.getElementById('id-order-input');
     const tempMejaIdInput = document.getElementById('temp-meja-id-input');
     const displayOrderId = document.getElementById('display-order-id');
+    const modalCustomer = document.getElementById('modal-customer'); 
+    const modalTotalDisplay = document.getElementById('modal-total-display'); 
 
-    // A. BUKA POPUP PEMBAYARAN
     if (paymentPopup && openPaymentButtons.length > 0) {
         openPaymentButtons.forEach(button => {
             button.addEventListener("click", function(e) {
                 e.preventDefault();
                 
-                // Ambil data dari tombol
                 const orderId = this.dataset.orderid;
                 const mejaId = this.dataset.mejaid; 
+                const customerName = this.dataset.customer;
+                const rawTotal = this.dataset.total;
+                const totalHarga = parseFloat(rawTotal) || 0;
 
-                // Isi Input Hidden
                 if(orderIdInput) orderIdInput.value = orderId;
                 if(tempMejaIdInput) tempMejaIdInput.value = mejaId; 
                 if(displayOrderId) displayOrderId.innerText = orderId;
+                if(modalCustomer) modalCustomer.innerText = customerName;
 
-                // Tampilkan Modal
+                if(modalTotalDisplay) {
+                    modalTotalDisplay.innerText = new Intl.NumberFormat('id-ID').format(totalHarga);
+                }
+
                 toggleModal(paymentPopup, true);
             });
         });
     }
 
-    // B. TUTUP POPUP PEMBAYARAN
     if (cancelPaymentBtn && paymentPopup) {
         cancelPaymentBtn.addEventListener("click", () => {
             toggleModal(paymentPopup, false);
         });
     }
 
-    // C. TUTUP JIKA KLIK AREA GELAP (OVERLAY)
     [logoutPopup, paymentPopup].forEach(popup => {
         if(popup) {
             popup.addEventListener('click', function(event) {
@@ -109,7 +111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ==========================================================
-    // 4. LOGIKA SUBMIT PEMBAYARAN (AJAX FETCH)
+    // 4. LOGIKA SUBMIT PEMBAYARAN (AJAX)
     // ==========================================================
     const submitPaymentBtn = document.getElementById('submit-payment-btn');
     const paymentMethodSelect = document.getElementById('metode_pembayaran');
@@ -117,27 +119,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (submitPaymentBtn && orderIdInput) {
         submitPaymentBtn.addEventListener('click', function() {
-            // Ambil Data Form
             const orderId = orderIdInput.value;
             const mejaId = tempMejaIdInput ? tempMejaIdInput.value : '';
             const paymentMethod = paymentMethodSelect ? paymentMethodSelect.value : 'Tunai';
             const adminId = adminIdInput ? adminIdInput.value : '';
-            
-            // Ambil URL dari atribut tombol (Penting untuk CI4!)
             const targetUrl = this.dataset.url;
 
-            // Validasi
             if (!orderId || !targetUrl) {
                 alert('Data tidak lengkap. Silakan refresh halaman.');
                 return;
             }
 
-            // UI Loading
             const originalText = submitPaymentBtn.textContent;
             submitPaymentBtn.disabled = true;
             submitPaymentBtn.textContent = 'Memproses...';
 
-            // Kirim Data JSON
             fetch(targetUrl, {
                 method: 'POST',
                 headers: {
@@ -154,18 +150,17 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('PEMBAYARAN BERHASIL!');
                     toggleModal(paymentPopup, false);
-                    window.location.reload(); // Refresh tabel
+                    window.location.reload(); 
                 } else {
-                    alert('GAGAL: ' + data.message);
+                    alert('GAGAL: ' + (data.message || 'Terjadi kesalahan'));
                     submitPaymentBtn.disabled = false;
                     submitPaymentBtn.textContent = originalText;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('Terjadi kesalahan koneksi.');
+                alert('Terjadi kesalahan koneksi server.');
                 submitPaymentBtn.disabled = false;
                 submitPaymentBtn.textContent = originalText;
             });
@@ -173,9 +168,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================================
-    // 5. AUTO HIDE FLASH MESSAGE (Opsional)
+    // 5. AUTO HIDE FLASH MESSAGE
     // ==========================================================
-    // Menghilangkan notifikasi sukses/error otomatis setelah 3 detik
     const flashMessages = document.querySelectorAll('.flash-msg');
     if(flashMessages.length > 0) {
         setTimeout(() => {
@@ -188,14 +182,71 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ==========================================================
-    // 6. FIX BUG BACK BUTTON (Logout Security)
+    // 6. LOGIKA GRAFIK DASHBOARD (HANYA INCOME CHART)
     // ==========================================================
-    window.addEventListener("pageshow", function (event) {
-        var historyTraversal = event.persisted || 
-                               (typeof window.performance != "undefined" && 
-                                window.performance.navigation.type === 2);
-        if (historyTraversal) {
-            window.location.reload();
+    const incomeChartCanvas = document.getElementById('incomeChart');
+
+    if (incomeChartCanvas) {
+        const chartUrl = incomeChartCanvas.dataset.url; 
+
+        if (chartUrl) {
+            fetch(chartUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    renderIncomeChart(incomeChartCanvas, data.income);
+                    // Pie Chart dihapus sesuai request
+                })
+                .catch(error => console.error('Gagal memuat data grafik:', error));
         }
-    });
+    }
+
+    function renderIncomeChart(canvas, incomeData) {
+        const ctx = canvas.getContext('2d');
+        
+        const labels = incomeData.map(item => {
+            const d = new Date(item.tanggal);
+            return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        });
+        const values = incomeData.map(item => item.total);
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Pendapatan (Rp)',
+                    data: values,
+                    borderColor: '#10b981', 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 3,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#10b981',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    fill: true,
+                    tension: 0.3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { borderDash: [2, 4] },
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + (value/1000) + 'k'; 
+                            }
+                        }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
 });

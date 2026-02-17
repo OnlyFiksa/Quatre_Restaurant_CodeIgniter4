@@ -19,17 +19,17 @@ class Order extends BaseController
         $orderModel = new OrderModel();
         $detailModel = new DetailOrderModel();
 
-        // 2. Generate ID (ORD-XXX)
+        // 2. Generate ID (ORD-TanggalBulanTahun-Acak)
+        // Sesuai screenshot: ORD-17022026-xxxx
         $id_order = 'ORD-' . date('dmY') . '-' . rand(1000, 9999);
 
-        // 3. Cek Data Meja (Handling jika kosong)
+        // 3. Cek Data Meja
         $no_meja = $json->no_meja;
-        // PENTING: Jika meja kosong atau '0', ubah jadi NULL (sesuaikan dengan DB Anda)
-        // Jika DB Anda mewajibkan isi (NOT NULL), ganti null dengan ID meja default (misal '1')
         if ($no_meja == '0' || $no_meja == '') {
             $no_meja = null; 
         }
 
+        // 4. Siapkan Data Header
         $dataOrder = [
             'id_order'      => $id_order,
             'id_meja'       => $no_meja,
@@ -38,12 +38,22 @@ class Order extends BaseController
             'tanggal_order' => date('Y-m-d'),
             'waktu_order'   => date('H:i:s'),
             'total_harga'   => $json->total_harga,
-            'status_order'  => 'masuk'
+            
+            // ❌ KITA HAPUS BARIS INI
+            // 'status_order'  => 'proses', 
+
+            // ✅ PENJELASAN:
+            // Karena di database kolom status_order sudah ada DEFAULT 'proses',
+            // kita jangan kirim apa-apa dari sini. Biarkan MySQL yang otomatis mengisinya.
+            // Ini menghindari typo atau error ENUM yang menolak data.
         ];
 
-        // 4. Proses Simpan (Tanpa Transaksi agar Error terlihat jelas)
+        // 5. Proses Simpan
+        $db = \Config\Database::connect();
+        $db->transStart();
+
         try {
-            // A. Simpan Order (Header)
+            // A. Simpan Header via Model
             if (!$orderModel->insert($dataOrder)) {
                 $errors = $orderModel->errors();
                 return $this->response->setJSON([
@@ -52,7 +62,7 @@ class Order extends BaseController
                 ]);
             }
 
-            // B. Simpan Detail (Isi Keranjang)
+            // B. Simpan Detail
             foreach ($json->items as $item) {
                 $dataDetail = [
                     'id_order' => $id_order,
@@ -62,29 +72,31 @@ class Order extends BaseController
                 ];
 
                 if (!$detailModel->insert($dataDetail)) {
-                    $errors = $detailModel->errors();
-                    // Hapus order header jika detail gagal (Manual Rollback)
-                    $orderModel->delete($id_order);
+                    $db->transRollback();
                     return $this->response->setJSON([
                         'success' => false, 
-                        'message' => 'Gagal simpan Menu: ' . implode(', ', $errors)
+                        'message' => 'Gagal simpan detail menu.'
                     ]);
                 }
+            }
+
+            $db->transComplete();
+
+            if ($db->transStatus() === FALSE) {
+                return $this->response->setJSON(['success' => false, 'message' => 'Gagal insert ke database']);
             }
 
             // SUKSES
             return $this->response->setJSON(['success' => true, 'id_order' => $id_order]);
 
         } catch (\Exception $e) {
-            // Tampilkan error SQL asli (seperti Foreign Key Error)
             return $this->response->setJSON([
                 'success' => false, 
                 'message' => 'System Error: ' . $e->getMessage()
             ]);
         }
     }
-
-    // Method untuk halaman sukses (Closing)
+    
     public function success($id_order)
     {
         return view('user/closing', ['id_order' => $id_order]);

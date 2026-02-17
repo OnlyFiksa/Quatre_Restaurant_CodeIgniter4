@@ -11,41 +11,51 @@ class Transaksi extends BaseController
 {
     public function proses()
     {
-        // 1. Cek Login & Method
-        if (!session()->get('isLoggedIn')) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Silakan login ulang.']);
-        }
+        
+        // Ambil Input
+        $input = $this->request->getJSON(true);
+        $id_order = $input['id_order'] ?? null;
+        $id_meja  = $input['id_meja'] ?? null;
+        $metode   = $input['metode_pembayaran'] ?? 'Cash'; // Default Cash
+        $id_admin = session()->get('id_admin');
 
-        // Ambil data JSON dari fetch/ajax
-        $input = $this->request->getJSON(true); // true = return as array
-
-        if (!$input) {
+        if (!$id_order || !$id_admin) {
             return $this->response->setJSON(['success' => false, 'message' => 'Data tidak valid.']);
         }
 
-        $id_order = $input['id_order'];
-        $id_meja  = $input['id_meja'];
-        $metode   = $input['metode_pembayaran'];
-        $id_admin = session()->get('id_admin'); // Ambil dari session login CI4
-
-        // Load Model
         $transaksiModel = new TransaksiModel();
         $orderModel     = new OrderModel();
         $mejaModel      = new MejaModel();
         $db             = \Config\Database::connect();
 
-        // 2. Ambil Total Harga dulu
-        $order = $orderModel->find($id_order);
-        if (!$order) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Order tidak ditemukan.']);
+        // LOGIKA BARU: GENERATE ID (TR-DDMMYY-XXX)
+        // ---------------------------------------------------------
+        $tanggalHariIni = date('dmy'); // Contoh: 170226
+        $prefix = "TR-" . $tanggalHariIni . "-"; // TR-170226-
+
+        // Cari transaksi terakhir yang mirip prefix hari ini
+        $lastTrx = $transaksiModel->like('id_transaksi', $prefix, 'after')
+                                  ->orderBy('id_transaksi', 'DESC')
+                                  ->first();
+
+        if ($lastTrx) {
+            // Jika ada (misal TR-170226-001), ambil 3 angka terakhir
+            $lastNumber = substr($lastTrx['id_transaksi'], -3); 
+            $nextNumber = intval($lastNumber) + 1; // 1 jadi 2
+        } else {
+            // Jika belum ada transaksi hari ini
+            $nextNumber = 1;
         }
 
-        // --- MULAI TRANSAKSI DATABASE ---
+        // Format jadi 3 digit (001, 002, 010, dst)
+        $id_transaksi = $prefix . sprintf("%03d", $nextNumber);
+        // Hasil Akhir: TR-170226-001
+        // ---------------------------------------------------------
+
         $db->transStart();
 
         try {
-            // A. Insert ke Tabel Transaksi
-            $id_transaksi = 'tr' . rand(10000000, 99999999);
+            // A. Simpan Transaksi
             $transaksiModel->insert([
                 'id_transaksi'      => $id_transaksi,
                 'id_order'          => $id_order,
@@ -53,31 +63,30 @@ class Transaksi extends BaseController
                 'tanggal_transaksi' => date('Y-m-d'),
                 'waktu_transaksi'   => date('H:i:s'),
                 'metode_transaksi'  => $metode,
-                'status_transaksi'  => 'Selesai'
+                'status_transaksi'  => 'Selesai' // Sesuai ENUM
             ]);
 
-            // B. Update Status Order -> Selesai
+            // B. Update Order jadi Selesai
             $orderModel->update($id_order, ['status_order' => 'selesai']);
 
-            // C. Update Status Meja -> Tersedia
-            $mejaModel->update($id_meja, ['status_meja' => 'tersedia']);
+            // C. Kosongkan Meja
+            if ($id_meja) {
+                $mejaModel->update($id_meja, ['status_meja' => 'tersedia']);
+            }
 
-            // Selesaikan Transaksi
             $db->transComplete();
 
             if ($db->transStatus() === false) {
-                // Jika ada error database di tengah jalan
-                return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan transaksi database.']);
+                return $this->response->setJSON(['success' => false, 'message' => 'Gagal menyimpan transaksi.']);
             }
 
-            // SUKSES!
             return $this->response->setJSON([
                 'success' => true, 
-                'message' => 'Pembayaran Berhasil! Meja sekarang tersedia.'
+                'message' => 'Pembayaran Berhasil! ID: ' . $id_transaksi
             ]);
 
         } catch (\Exception $e) {
-            return $this->response->setJSON(['success' => false, 'message' => $e->getMessage()]);
+            return $this->response->setJSON(['success' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
     }
 }
