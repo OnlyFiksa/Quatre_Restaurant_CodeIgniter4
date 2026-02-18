@@ -183,8 +183,49 @@
                     </div>
                 </div>
 
-                <button onclick="processOrder()" class="w-full bg-sage-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-sage-900/20 active:scale-95 transition-transform flex items-center justify-center gap-2 hover:bg-sage-800">
-                    <i class='bx bxs-paper-plane'></i> Kirim Pesanan
+                <button onclick="openConfirmation()" class="w-full bg-sage-900 text-white font-bold py-4 rounded-2xl shadow-xl shadow-sage-900/20 active:scale-95 transition-transform flex items-center justify-center gap-2 hover:bg-sage-800">
+                    <i class='bx bxs-paper-plane'></i> Pesan Sekarang
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="fixed inset-0 z-[80] hidden flex items-center justify-center px-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity opacity-0" onclick="closeConfirmation()"></div>
+        <div class="bg-white w-full max-w-sm rounded-[30px] p-6 relative z-10 shadow-2xl transform scale-95 transition-transform duration-300">
+            <div class="text-center mb-5">
+                <div class="w-16 h-16 bg-yellow-100 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class='bx bx-question-mark text-4xl'></i>
+                </div>
+                <h3 class="text-xl font-bold text-sage-900">Sudah Benar?</h3>
+                <p class="text-sm text-gray-500 mt-1">Mohon cek kembali pesanan Anda sebelum dikirim ke dapur.</p>
+            </div>
+
+            <div class="bg-sage-50 p-4 rounded-2xl border border-sage-100 text-sm text-sage-800 mb-6 space-y-2">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Nama:</span>
+                    <span class="font-bold" id="confirmNama">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Meja:</span>
+                    <span class="font-bold" id="confirmMeja">-</span>
+                </div>
+                <div class="flex justify-between border-t border-dashed border-sage-200 pt-2 mt-1">
+                    <span class="text-gray-400">Total Item:</span>
+                    <span class="font-bold" id="confirmQty">-</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Total Harga:</span>
+                    <span class="font-bold text-sage-600" id="confirmTotal">-</span>
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeConfirmation()" class="flex-1 py-3 rounded-xl border border-gray-200 text-gray-500 font-bold hover:bg-gray-50">
+                    Cek Lagi
+                </button>
+                <button onclick="submitFinalOrder()" id="btnFinalSubmit" class="flex-1 py-3 rounded-xl bg-sage-900 text-white font-bold shadow-lg hover:bg-sage-800 flex justify-center items-center gap-2">
+                    Ya, Kirim!
                 </button>
             </div>
         </div>

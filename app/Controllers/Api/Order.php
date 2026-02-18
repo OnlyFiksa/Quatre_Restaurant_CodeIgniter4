@@ -14,6 +14,14 @@ class Order extends ResourceController
     // POST /api/order (Buat Pesanan)
     public function create()
     {
+        // 1. VALIDASI DATA (Security)
+        if (!$this->validate([
+            'nama_pelanggan' => 'required',
+            'detail'         => 'required' // Harus ada array detail menu
+        ])) {
+            return $this->fail($this->validator->getErrors());
+        }
+
         $json = $this->request->getJSON();
         if (!$json) return $this->fail('Data JSON Kosong', 400);
 
@@ -26,28 +34,26 @@ class Order extends ResourceController
 
         $db->transStart();
 
-        // 1. Simpan Header Order
+        // 2. Simpan Header Order
         $orderModel->insert([
             'id_order'      => $id_order,
-            'id_meja'       => $json->id_meja,
+            'id_meja'       => $json->id_meja ?? null,
             'nama_customer' => $json->nama_pelanggan,
             'nomor_telepon' => $json->nomor_telepon ?? '-',
             'tanggal_order' => date('Y-m-d'),
             'waktu_order'   => date('H:i:s'),
-            'total_harga'   => 0,
+            'total_harga'   => 0, // Nanti diupdate
         ]);
 
-        // 2. Simpan Detail
+        // 3. Simpan Detail
         $total_harga = 0;
         if(isset($json->detail)){
             foreach ($json->detail as $item) {
-                // Pastikan id_menu dibaca sebagai string
                 $id_menu = (string) $item->id_menu; 
 
                 // Ambil harga dari DB Menu
                 $menu = $db->table('menu')->where('id_menu', $id_menu)->get()->getRowArray();
                 
-                // Kalau menu gak ketemu (typo id), lewati atau error
                 if (!$menu) {
                      return $this->failNotFound("Menu ID '$id_menu' tidak ditemukan!");
                 }
@@ -58,14 +64,14 @@ class Order extends ResourceController
     
                 $detailModel->insert([
                     'id_order' => $id_order,
-                    'id_menu'  => $id_menu, // Masuk sebagai String 'menu001'
+                    'id_menu'  => $id_menu, 
                     'quantity' => $item->qty,
                     'subtotal' => $subtotal
                 ]);
             }
         }
 
-        // 3. Update Total Harga Asli
+        // 4. Update Total Harga Asli
         $orderModel->update($id_order, ['total_harga' => $total_harga]);
 
         $db->transComplete();

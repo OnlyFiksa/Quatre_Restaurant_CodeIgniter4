@@ -35,28 +35,51 @@ Kelola Staff
                 <?php else: ?>
                     <?php foreach ($users as $u) : ?>
                     <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-4 font-mono text-sage-text/70"><?= esc($u['id_admin']) ?></td>
-                        <td class="p-4 font-bold text-sage-text"><?= esc($u['nama']) ?></td>
-                        <td class="p-4 text-sage-text"><?= esc($u['username']) ?></td>
+                        <td class="p-4 font-mono text-sage-text/70">
+                            <?= esc($u['id_admin'] ?? $u['id'] ?? '-') ?>
+                        </td>
+                        
+                        <td class="p-4 font-bold text-sage-text">
+                            <?= esc($u['nama'] ?? $u['nama_admin'] ?? '-') ?>
+                        </td>
+                        
+                        <td class="p-4 text-sage-text">
+                            <?= esc($u['username'] ?? '-') ?>
+                        </td>
+
                         <td class="p-4">
                             <?php 
+                                $jabatan = $u['jabatan'] ?? 'Staff';
                                 $badgeColor = 'bg-gray-100 text-gray-600';
-                                if($u['jabatan'] == 'Owner') $badgeColor = 'bg-purple-100 text-purple-600 border border-purple-200';
-                                elseif($u['jabatan'] == 'Supervisor') $badgeColor = 'bg-blue-100 text-blue-600 border border-blue-200';
-                                elseif($u['jabatan'] == 'Kasir') $badgeColor = 'bg-emerald-100 text-emerald-600 border border-emerald-200';
+                                if($jabatan == 'Owner') $badgeColor = 'bg-purple-100 text-purple-600 border border-purple-200';
+                                elseif($jabatan == 'Supervisor') $badgeColor = 'bg-blue-100 text-blue-600 border border-blue-200';
+                                elseif($jabatan == 'Kasir') $badgeColor = 'bg-emerald-100 text-emerald-600 border border-emerald-200';
                             ?>
                             <span class="px-3 py-1 rounded-full text-xs font-bold <?= $badgeColor ?>">
-                                <?= esc($u['jabatan']) ?>
+                                <?= esc($jabatan) ?>
                             </span>
                         </td>
+                        
                         <td class="p-4 text-center">
                             <div class="flex items-center justify-center gap-2">
-                                <a href="<?= base_url('admin/users/edit/' . $u['id_admin']) ?>" class="size-8 rounded-lg bg-orange-100 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all">
+                                <?php 
+                                    $idUser = $u['id_admin'] ?? $u['id'] ?? ''; 
+                                    $myId = session()->get('id_admin');
+                                ?>
+                                
+                                <a href="<?= base_url('admin/users/edit/' . $idUser) ?>" class="size-8 rounded-lg bg-orange-100 text-orange-500 hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all">
                                     <span class="material-symbols-outlined text-lg">edit</span>
                                 </a>
-                                <a href="<?= base_url('admin/users/hapus/' . $u['id_admin']) ?>" onclick="return confirm('Hapus user ini?')" class="size-8 rounded-lg bg-red-100 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all">
-                                    <span class="material-symbols-outlined text-lg">delete</span>
-                                </a>
+                                
+                                <?php if($idUser != $myId): ?>
+                                    <a href="<?= base_url('admin/users/hapus/' . $idUser) ?>" onclick="return confirm('Hapus user ini?')" class="size-8 rounded-lg bg-red-100 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all">
+                                        <span class="material-symbols-outlined text-lg">delete</span>
+                                    </a>
+                                <?php else: ?>
+                                    <button disabled class="size-8 rounded-lg bg-gray-100 text-gray-300 cursor-not-allowed flex items-center justify-center">
+                                        <span class="material-symbols-outlined text-lg">block</span>
+                                    </button>
+                                <?php endif; ?>
                             </div>
                         </td>
                     </tr>

@@ -1,6 +1,6 @@
 /**
  * FINAL CODE - script-user.js
- * Fitur: Filter, Cart, Modal, Checkout, Integrasi Database & Redirect Sukses
+ * Fitur: Filter, Cart, Modal, Checkout, Konfirmasi Popup, Integrasi Database
  */
 
 let cart = {};
@@ -174,25 +174,79 @@ function closeCheckout() {
 }
 
 // =========================================
-// 5. PROSES ORDER (AJAX KE DB)
+// 5. CONFIRMATION POPUP (NEW)
 // =========================================
-async function processOrder() {
+function openConfirmation() {
     const nama = document.getElementById('inputNama').value;
-    const hp = document.getElementById('inputHP').value;
     
-    // Validasi Nama
+    // 1. Validasi Nama Dulu
     if (!nama) {
         Swal.fire('Eits!', 'Nama pemesan wajib diisi ya.', 'warning');
         return;
     }
 
-    // Ambil Nomor Meja (Dari Badge Banner HTML)
+    // 2. Hitung Ulang Total untuk Display
+    let totalHarga = 0;
+    let totalQty = 0;
     let noMeja = '0';
-    // Kita cari elemen ID displayTableNumber yang ada di View
     const mejaEl = document.getElementById('displayTableNumber');
     if (mejaEl) noMeja = mejaEl.innerText.trim();
 
-    // Siapkan Data Item
+    for (let id in cart) {
+        if (cart[id].qty > 0) {
+            totalHarga += (cart[id].qty * cart[id].harga);
+            totalQty += cart[id].qty;
+        }
+    }
+
+    if (totalQty === 0) {
+        Swal.fire('Kosong', 'Pilih menu dulu dong.', 'warning');
+        return;
+    }
+
+    // 3. Isi Data ke Modal Konfirmasi
+    document.getElementById('confirmNama').innerText = nama;
+    document.getElementById('confirmMeja').innerText = "Meja " + noMeja;
+    document.getElementById('confirmQty').innerText = totalQty + " Item";
+    document.getElementById('confirmTotal').innerText = formatRupiah(totalHarga);
+
+    // 4. Buka Modal dengan Animasi
+    const modal = document.getElementById('confirmModal');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        modal.querySelector('div:first-child').classList.remove('opacity-0');
+        modal.querySelector('div:last-child').classList.remove('scale-95');
+        modal.querySelector('div:last-child').classList.add('scale-100');
+    }, 10);
+}
+
+function closeConfirmation() {
+    const modal = document.getElementById('confirmModal');
+    modal.querySelector('div:first-child').classList.add('opacity-0');
+    modal.querySelector('div:last-child').classList.remove('scale-100');
+    modal.querySelector('div:last-child').classList.add('scale-95');
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+
+// =========================================
+// 6. PROSES ORDER KE DATABASE
+// =========================================
+async function submitFinalOrder() {
+    const btn = document.getElementById('btnFinalSubmit');
+    const originalText = btn.innerHTML;
+    
+    // Loading State
+    btn.innerHTML = `<i class='bx bx-loader-alt animate-spin'></i> Kirim...`;
+    btn.disabled = true;
+
+    // Ambil Data Final
+    const nama = document.getElementById('inputNama').value;
+    const hp = document.getElementById('inputHP').value;
+    let noMeja = '0';
+    const mejaEl = document.getElementById('displayTableNumber');
+    if (mejaEl) noMeja = mejaEl.innerText.trim();
+
     let items = [];
     let totalHarga = 0;
 
@@ -207,19 +261,7 @@ async function processOrder() {
         }
     }
 
-    if (items.length === 0) {
-        Swal.fire('Kosong', 'Pilih menu dulu dong.', 'warning');
-        return;
-    }
-
-    // Ubah Tombol jadi Loading
-    const btn = document.querySelector('#checkoutModal button[onclick="processOrder()"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = `<i class='bx bx-loader-alt animate-spin'></i> Mengirim...`;
-    btn.disabled = true;
-
     try {
-        // [PENTING] Pastikan Port 8080 sesuai setup Anda
         const response = await fetch('http://localhost:8080/order/process', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -235,19 +277,26 @@ async function processOrder() {
         const result = await response.json();
 
         if (result.success) {
+            closeConfirmation(); // Tutup Popup Konfirmasi
+            closeCheckout();     // Tutup Checkout
+
             Swal.fire({
                 icon: 'success',
                 title: 'Pesanan Diterima!',
-                text: `Terima kasih ${nama}, sedang dialihkan...`,
-                timer: 1500,
+                text: `Terima kasih ${nama}, pesanan sedang diproses dapur.`,
+                timer: 2000,
                 showConfirmButton: false
             }).then(() => {
                 cart = {};
-                // Redirect ke Halaman Sukses
                 window.location.href = 'http://localhost:8080/order/success/' + result.id_order;
             });
         } else {
-            Swal.fire('Gagal', result.message || 'Terjadi kesalahan sistem.', 'error');
+            // Tampilkan error dari validasi backend
+            let errMsg = result.message;
+            if (result.errors) {
+                errMsg += '\n' + JSON.stringify(result.errors);
+            }
+            Swal.fire('Gagal', errMsg, 'error');
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
