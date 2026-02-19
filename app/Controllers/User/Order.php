@@ -5,101 +5,86 @@ namespace App\Controllers\User;
 use App\Controllers\BaseController;
 use App\Models\OrderModel;
 use App\Models\DetailOrderModel;
+use App\Models\MejaModel;
 
 class Order extends BaseController
 {
     public function process()
     {
-        // 1. VALIDASI INPUT (Security Requirement Modul)
-        // Pastikan nama ada, items ada, dan total_harga angka
+        // 1. VALIDASI
         if (!$this->validate([
             'nama'        => 'required|min_length[3]',
             'items'       => 'required', 
             'total_harga' => 'required|numeric'
         ])) {
-            // Jika validasi gagal, kirim pesan error
             return $this->response->setJSON([
                 'success' => false,
-                'message' => 'Data tidak lengkap atau format salah.',
+                'message' => 'Data tidak lengkap.',
                 'errors'  => $this->validator->getErrors()
             ]);
         }
 
-        // 2. Ambil JSON
         $json = $this->request->getJSON();
-        if (!$json) {
-            return $this->response->setJSON(['success' => false, 'message' => 'Tidak ada data JSON']);
-        }
+        if (!$json) return $this->response->setJSON(['success' => false, 'message' => 'No Data']);
 
-        $orderModel = new OrderModel();
+        $orderModel  = new OrderModel();
         $detailModel = new DetailOrderModel();
-
-        // 3. Generate ID (ORD-TanggalBulanTahun-Acak)
+        
+        // 3. ID Order
         $id_order = 'ORD-' . date('dmY') . '-' . rand(1000, 9999);
 
-        // 4. Cek Data Meja
-        $no_meja = $json->no_meja;
-        if ($no_meja == '0' || $no_meja == '') {
-            $no_meja = null; 
+        // 4. Cek Input Meja (ID Meja dari Frontend)
+        $id_meja = $json->no_meja; // Asumsi frontend kirim ID meja
+        if ($id_meja == '0' || $id_meja == '') {
+            $id_meja = null; 
         }
 
-        // 5. Siapkan Data Header
+        // 5. Header Order
         $dataOrder = [
             'id_order'      => $id_order,
-            'id_meja'       => $no_meja,
+            'id_meja'       => $id_meja, 
             'nama_customer' => $json->nama,
             'nomor_telepon' => $json->no_hp,
             'tanggal_order' => date('Y-m-d'),
             'waktu_order'   => date('H:i:s'),
             'total_harga'   => $json->total_harga,
-            // 'status_order' => 'proses' (Default DB)
         ];
 
-        // 6. Proses Simpan dengan Transaksi DB
         $db = \Config\Database::connect();
         $db->transStart();
 
         try {
-            // A. Simpan Header
-            if (!$orderModel->insert($dataOrder)) {
-                return $this->response->setJSON([
-                    'success' => false, 
-                    'message' => 'Gagal simpan Order Header'
-                ]);
-            }
+            // A. Insert Order
+            $orderModel->insert($dataOrder);
 
-            // B. Simpan Detail
+            // B. Insert Detail
             foreach ($json->items as $item) {
-                $dataDetail = [
+                $detailModel->insert([
                     'id_order' => $id_order,
                     'id_menu'  => $item->id_menu,
                     'quantity' => $item->qty,
                     'subtotal' => $item->qty * $item->harga
-                ];
+                ]);
+            }
 
-                if (!$detailModel->insert($dataDetail)) {
-                    $db->transRollback();
-                    return $this->response->setJSON([
-                        'success' => false, 
-                        'message' => 'Gagal simpan detail menu.'
-                    ]);
-                }
+            // C. UPDATE STATUS MEJA -> 'terisi'
+            // Gunakan 'status_meja' sesuai database Anda
+            if ($id_meja) {
+                $db->table('meja')
+                   ->where('id_meja', $id_meja)
+                   ->update(['status_meja' => 'terisi']);
             }
 
             $db->transComplete();
 
             if ($db->transStatus() === FALSE) {
-                return $this->response->setJSON(['success' => false, 'message' => 'Gagal insert ke database']);
+                return $this->response->setJSON(['success' => false, 'message' => 'Gagal Database Transaction']);
             }
 
-            // SUKSES
             return $this->response->setJSON(['success' => true, 'id_order' => $id_order]);
 
         } catch (\Exception $e) {
-            return $this->response->setJSON([
-                'success' => false, 
-                'message' => 'System Error: ' . $e->getMessage()
-            ]);
+            return $this->response->setJSON(['success' => false, 'message' => $e->getMessage()]);
         }
     }
     

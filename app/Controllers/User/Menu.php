@@ -4,47 +4,52 @@ namespace App\Controllers\User;
 
 use App\Controllers\BaseController;
 use App\Models\MenuModel;
+use App\Models\KategoriModel;
+use App\Models\MejaModel;
 
 class Menu extends BaseController
 {
     public function index()
     {
         $menuModel = new MenuModel();
+        $kategoriModel = new KategoriModel();
+        $mejaModel = new MejaModel();
 
-        // 1. TANGKAP NOMOR MEJA DARI URL
-        // Contoh: localhost:8080/?table=12
-        $mejaDariUrl = $this->request->getGet('table');
+        // 1. Cek Parameter Table/Meja
+        $no_meja = $this->request->getGet('table') ?? $this->request->getGet('meja');
 
-        // 2. SIMPAN KE SESSION
-        // Jika ada data di URL, update session. 
-        // Jika tidak ada di URL, biarkan session yang lama (supaya kalau refresh gak hilang)
-        if ($mejaDariUrl) {
-            session()->set('table_number', $mejaDariUrl);
+        // 2. LOGIC CEK STATUS MEJA
+        if ($no_meja) {
+            $dataMeja = $mejaModel->where('nomor_meja', $no_meja)->first();
+
+            if (!$dataMeja) {
+                return view('user/error_akses', [
+                    'title' => 'Meja Tidak Ditemukan',
+                    'pesan' => "Nomor Meja <strong>$no_meja</strong> tidak terdaftar."
+                ]);
+            }
+
+            if ($dataMeja['status_meja'] == 'tidak_tersedia') {
+                return view('user/error_akses', [
+                    'title' => 'Meja Tidak Tersedia',
+                    'pesan' => "Mohon maaf, <strong>Meja $no_meja</strong> sedang tidak dapat digunakan. Silakan pilih meja lain."
+                ]);
+            }
         }
 
-        // 3. AMBIL DATA MENU (Logic Lama)
-        try {
-            $menus = $menuModel->select('menu.*, kategori.nama_kategori as nama_kategori')
-                               ->join('kategori', 'kategori.id_kategori = menu.id_kategori', 'left')
-                               ->where('menu.status_menu', 'tersedia')
-                               ->orderBy('kategori.nama_kategori', 'ASC')
-                               ->orderBy('menu.nama_menu', 'ASC')
-                               ->findAll();
-        } catch (\Exception $e) {
-            $menus = $menuModel->where('status_menu', 'tersedia')->findAll();
-        }
-
-        $kategoriList = [];
-        foreach ($menus as $m) {
-            $catName = $m['nama_kategori'] ?? 'Lainnya'; 
-            if (!in_array($catName, $kategoriList)) $kategoriList[] = $catName;
-        }
-
-        // 4. KIRIM NOMOR MEJA KE VIEW
+        // 3. Tampilkan Menu (FIXED: Tambah JOIN Kategori)
         $data = [
-            'menus'       => $menus,
-            'kategori'    => $kategoriList,
-            'tableNumber' => session()->get('table_number') // Ambil dari session
+            'kategori' => $kategoriModel->where('status_kategori', 'tersedia')->findAll(),
+            
+            'menus'    => $menuModel->select('menu.*, kategori.nama_kategori')
+                                    ->join('kategori', 'kategori.id_kategori = menu.id_kategori')
+                                    ->where('status_menu', 'tersedia')
+                                    // PERBAIKAN: Urutkan berdasarkan nama kategori, lalu nama menu
+                                    ->orderBy('kategori.nama_kategori', 'ASC')
+                                    ->orderBy('menu.nama_menu', 'ASC')
+                                    ->findAll(),
+            
+            'tableNumber' => $no_meja 
         ];
 
         return view('user/index', $data);

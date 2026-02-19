@@ -67,8 +67,11 @@
         <div class="bg-white/80 backdrop-blur-md p-2 rounded-[30px] shadow-lg shadow-sage-500/5 mb-8 border border-white flex justify-center overflow-hidden">
             <div class="flex gap-2 overflow-x-auto no-scrollbar py-1 w-full md:justify-center">
                 <button onclick="filterMenu('all', this)" class="cat-btn active">Semua</button>
+                
                 <?php foreach($kategori as $k): ?>
-                    <button onclick="filterMenu('<?= $k ?>', this)" class="cat-btn"><?= $k ?></button>
+                    <button onclick="filterMenu('<?= esc($k['id_kategori']) ?>', this)" class="cat-btn">
+                        <?= esc($k['nama_kategori']) ?>
+                    </button>
                 <?php endforeach; ?>
             </div>
         </div>
@@ -77,7 +80,7 @@
             <?php $delay = 0; foreach($menus as $m): ?>
             <div class="menu-card group bg-white p-3 rounded-[28px] shadow-lg shadow-sage-500/5 hover:shadow-2xl hover:shadow-sage-500/20 transition-all duration-300 cursor-pointer border border-transparent hover:border-sage-100 opacity-0 animate-fade-up"
                  style="animation-delay: <?= $delay ?>ms"
-                 data-category="<?= $m['nama_kategori'] ?? 'Umum' ?>" 
+                 data-category="<?= esc($m['id_kategori']) ?>" 
                  onclick='openDetail(<?= json_encode($m) ?>)'>
                 
                 <div class="relative aspect-square overflow-hidden rounded-[24px] mb-3 bg-sage-50">
@@ -86,7 +89,7 @@
                          onerror="this.src='https://placehold.co/400x400/f4f7f5/558b6e?text=Menu'">
                     
                     <span class="absolute top-2 left-2 bg-white/90 backdrop-blur-sm text-sage-600 text-[9px] font-bold px-2 py-1 rounded-lg shadow-sm">
-                        <?= $m['nama_kategori'] ?? 'Umum' ?>
+                        <?= esc($m['nama_kategori'] ?? 'Umum') ?>
                     </span>
 
                     <div class="absolute bottom-2 right-2 bg-sage-900 text-white w-9 h-9 rounded-full flex items-center justify-center shadow-lg translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
